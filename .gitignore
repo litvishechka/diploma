@@ -1,0 +1,8 @@
+# Ignore generated files
+*pb2*
+
+# Ignore virtual environment
+.venv/
+
+# Ignore database
+*.txt
