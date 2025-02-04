@@ -6,3 +6,6 @@
 
 # Ignore database
 *.txt
+
+# Ignore py files
+__pycache__/
