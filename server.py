@@ -19,6 +19,7 @@ class AuthService(chat_pb2_grpc.AuthServiceServicer):
         if (user_info is not None):
             return chat_pb2.RegisterResponse(message="Пользователь с именем %s уже существует!" % request.username)
         else:
+            self.db_service.add_user(request.username, request.password) #чтобы добавлялось в файл
             return chat_pb2.RegisterResponse(message="Вы успешно зарегистированы!")
     
 
@@ -41,7 +42,7 @@ def serve():
         reflection.SERVICE_NAME,
     )
     reflection.enable_server_reflection(SERVICE_NAMES, server)
-    server.add_insecure_port("[::]:" + port)
+    server.add_insecure_port("0.0.0.0:" + port)
     server.start()
     print("Server started, listening on " + port)
     server.wait_for_termination()
