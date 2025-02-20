@@ -19,7 +19,7 @@ class AuthService(chat_pb2_grpc.AuthServiceServicer):
         if (user_info is not None):
             return chat_pb2.RegisterResponse(message="Пользователь с именем %s уже существует!" % request.username)
         else:
-            self.db_service.add_user(request.username, request.password) #чтобы добавлялось в файл
+            self.db_service.add_user(request.username, request.password) 
             return chat_pb2.RegisterResponse(message="Вы успешно зарегистированы!")
     
 
