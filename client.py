@@ -8,7 +8,7 @@ import chat_pb2_grpc
 def run() -> None:
     with grpc.insecure_channel("localhost:50051") as channel:
         stub = chat_pb2_grpc.AuthServiceStub(channel)
-        print("Для регистрации нажмите  0, для авторизации - 1, выхода - Ctr+C")
+        print("Для регистрации нажмите - 0, для авторизации - 1, выхода - Ctr+C")
         while True:
             cmd = int(input())
             if cmd == 0:

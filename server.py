@@ -1,7 +1,7 @@
 from concurrent import futures
 import logging
 
-from database_service import DatabaseService, TextDbService
+from database_service import DatabaseService, PostgreSQLDbService
 
 import grpc
 import chat_pb2
@@ -14,8 +14,9 @@ class AuthService(chat_pb2_grpc.AuthServiceServicer):
         super().__init__()
         self.db_service = dbs
 
+
     def RegisterUser(self, request, context):
-        user_info = self.db_service.get_user_info(request.username, request.password)
+        user_info = self.db_service.get_user_info(request.username)
         if (user_info is not None):
             return chat_pb2.RegisterResponse(message="Пользователь с именем %s уже существует!" % request.username)
         else:
@@ -24,7 +25,7 @@ class AuthService(chat_pb2_grpc.AuthServiceServicer):
     
 
     def LoginUser(self, request, context):
-        user_info = self.db_service.get_user_info(request.username, request.password)
+        user_info = self.db_service.get_user_info(request.username)
         if user_info is None:
             return chat_pb2.LoginResponse(message="Пользователя с именем %s не существует, попробуйте зарегистрироваться!" % request.username)
         elif user_info[1] != request.password:
@@ -36,7 +37,9 @@ class AuthService(chat_pb2_grpc.AuthServiceServicer):
 def serve():
     port = "50051"
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    chat_pb2_grpc.add_AuthServiceServicer_to_server(AuthService(TextDbService("registered_users.txt")), server)
+    # dbService = TextDbService("registered_users.txt")
+    dbService = PostgreSQLDbService("habrdb", "habrpguser", "pgpwd4habr", "127.0.0.1", "5432")
+    chat_pb2_grpc.add_AuthServiceServicer_to_server(AuthService(dbService), server)
     SERVICE_NAMES = (
         chat_pb2.DESCRIPTOR.services_by_name['AuthService'].full_name,
         reflection.SERVICE_NAME,

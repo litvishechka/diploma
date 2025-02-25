@@ -1,5 +1,7 @@
+import psycopg2
+
 class DatabaseService:
-    def get_user_info(self, username: str, password: str)-> tuple[str, str]: 
+    def get_user_info(self, username: str)-> tuple[str, str]: 
         """
             Этот метод возвращает пару (username, password) для заданного username, 
             если такая пара находится в базе данных.
@@ -19,8 +21,9 @@ class TextDbService(DatabaseService):
     def __init__(self, filename):
         self.filename = filename
         self.delimeter = "^_^"
-        
-    def get_user_info(self, username: str, password: str)-> tuple[str, str]: 
+
+
+    def get_user_info(self, username: str)-> tuple[str, str]: 
         file = open(self.filename, mode='r')
         found_username = ""
         found_password = ""
@@ -44,5 +47,81 @@ class TextDbService(DatabaseService):
         return True    
 
             
+class PostgreSQLDbService(DatabaseService):
+    def __init__(self, dbname, user, password, host, port):
+        # Создание соединение с базой данных и сохрание переменной в данном экземпляре (self)
+        self.connection = psycopg2.connect(dbname=dbname, user=user, password=password, host=host, port=port)
+        self.__create_tables()
+
+    def __del__(self):
+        self.connection.close()
 
 
+    def __create_tables(self):
+        # Создание таблиц, если они ещё не были созданы
+        commands = (
+        """ CREATE TABLE IF NOT EXISTS users (
+            user_id SERIAL PRIMARY KEY,
+            user_name VARCHAR(50) UNIQUE NOT NULL,
+            password VARCHAR(50) NOT NULL
+        )
+        """,
+        """ CREATE TABLE IF NOT EXISTS chat(
+                chat_id SERIAL PRIMARY KEY,
+                chat_name VARCHAR(50) NOT NULL
+                )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS user_chat(
+                user_chat_id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                FOREIGN KEY (user_id)
+                    REFERENCES users (user_id)
+                    ON UPDATE CASCADE ON DELETE CASCADE,
+                FOREIGN KEY (chat_id)
+                    REFERENCES chat (chat_id)
+                    ON UPDATE CASCADE ON DELETE CASCADE    
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS message(
+                message_id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                date_created DATE NOT NULL,
+                FOREIGN KEY (user_id)
+                    REFERENCES users (user_id)
+                    ON UPDATE CASCADE ON DELETE CASCADE,
+                FOREIGN KEY (chat_id)
+                    REFERENCES chat (chat_id)
+                    ON UPDATE CASCADE ON DELETE CASCADE   
+        )
+        """)
+        cursor = self.connection.cursor()
+        for command in commands:
+            cursor.execute(command)
+        cursor.close()
+        self.connection.commit()
+        # pass
+
+
+    def get_user_info(self, username: str)-> tuple[str, str]: 
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT user_name, password FROM users")
+        users_passwords = cursor.fetchall()
+        for row in users_passwords:
+            found_username = row[0] 
+            found_password = row[1]
+            if found_username == username:
+                return found_username, found_password
+        return None
+        # pass
+
+
+    def add_user(self, username: str, password: str) -> bool:
+        cursor = self.connection.cursor()
+        cursor.execute(f"INSERT INTO users(user_name, password) VALUES (\'{username}\', \'{password}\')")
+        self.connection.commit()
+        cursor.close()
