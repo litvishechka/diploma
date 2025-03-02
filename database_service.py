@@ -12,10 +12,26 @@ class DatabaseService:
     def add_user(self, username: str, password: str) -> bool:
         """
             Этот метод добавляет новую пару (username, password) в хранилище.
-
             Возвращает булевое значение в зависимости от успешности записи в БД.
         """
         raise NotImplementedError("Метод add_user не реализован.")
+    
+    def create_chat(self, chat_name: str):
+        """
+            Этот метод создаёт чат, добавляет его в хранилище.
+            Возращает его id.
+        """
+        raise NotImplementedError("Метод create_chat не реализован.")
+    
+    def get_all_users(self, username: str):
+        """Метод возвращает всех пользователей."""
+        raise NotImplementedError("Метод get_all_users не реализован.")
+    
+    def add_users_to_chat(self, creator: str, chat_name: str, users: list):
+        """
+            Этот метод добавляет пользователей в нужный чат.
+        """
+        raise NotImplementedError("Метод add_to_chat не реализован.")
     
 class TextDbService(DatabaseService):
     def __init__(self, filename):
@@ -73,7 +89,7 @@ class PostgreSQLDbService(DatabaseService):
         """,
         """
         CREATE TABLE IF NOT EXISTS user_chat(
-                user_chat_id INTEGER PRIMARY KEY,
+                user_chat_id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
                 chat_id INTEGER NOT NULL,
                 FOREIGN KEY (user_id)
@@ -123,5 +139,36 @@ class PostgreSQLDbService(DatabaseService):
     def add_user(self, username: str, password: str) -> bool:
         cursor = self.connection.cursor()
         cursor.execute(f"INSERT INTO users(user_name, password) VALUES (\'{username}\', \'{password}\')")
+        self.connection.commit()
+        cursor.close()
+
+    def create_chat(self, chat_name):
+        cursor = self.connection.cursor()
+        cursor.execute(f"INSERT INTO chat(chat_name) VALUES (\'{chat_name}\')")
+        self.connection.commit()
+        cursor.execute(f"SELECT chat_id FROM chat WHERE chat_name = \'{chat_name}\'")
+        result = [row[0] for row in cursor.fetchall()]
+        cursor.close()
+        return result
+    
+    def get_all_users(self, username: str):
+        cursor = self.connection.cursor()
+        cursor.execute(f"SELECT user_id, user_name FROM users")
+        result = cursor.fetchall()
+        # for i in range(len(result)):
+        #     if result[i][1] == username:
+        #         temp = list(result[i])
+        #         temp[1] += " (вы)"
+        #         result[i] = tuple(temp)
+        return result    
+    
+    def add_users_to_chat(self, chat_id, users: list[int]):
+        #chat_id приходит как элемент листа
+        values = []
+        for user_id in users:
+            values.append(tuple([user_id, chat_id[0]]))
+        # print(values)
+        cursor = self.connection.cursor()
+        cursor.executemany("INSERT INTO user_chat(user_id, chat_id) VALUES(%s,%s)", values)
         self.connection.commit()
         cursor.close()
