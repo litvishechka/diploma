@@ -146,7 +146,7 @@ class PostgreSQLDbService(DatabaseService):
         cursor = self.connection.cursor()
         cursor.execute(f"INSERT INTO chat(chat_name) VALUES (\'{chat_name}\')")
         self.connection.commit()
-        cursor.execute(f"SELECT chat_id FROM chat WHERE chat_name = \'{chat_name}\'")
+        cursor.execute(f"SELECT chat_id FROM chat WHERE chat_name = \'{chat_name}\' ORDER BY chat_id DESC LIMIT 1")
         result = [row[0] for row in cursor.fetchall()]
         cursor.close()
         return result
