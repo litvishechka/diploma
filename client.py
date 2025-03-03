@@ -1,8 +1,10 @@
 import logging
 
 import grpc
-import chat_pb2
-import chat_pb2_grpc
+import auth_service_pb2
+import auth_service_pb2_grpc
+import message_service_pb2
+import message_service_pb2_grpc
 
 
 def main_menu(stub):
@@ -16,21 +18,21 @@ def main_menu(stub):
         if cmd == '0':
             username = str(input("Введите логин: "))
             password = str(input("Введите пароль: "))
-            response = stub.RegisterUser(chat_pb2.RegisterRequest(username=username, password=password))
+            response = stub.RegisterUser(auth_service_pb2.RegisterRequest(username=username, password=password))
             print(response.message)
             # return 0
         elif cmd == '1':
             username = str(input("Введите логин: "))
             password = str(input("Введите пароль: "))
-            response = stub.LoginUser(chat_pb2.LoginRequest(username=username, password=password))
+            response = stub.LoginUser(auth_service_pb2.LoginRequest(username=username, password=password))
             print(response.message)
             if response.message == "Вы успешно авторизованы!":
-                return 1
+                return 1, username
         elif cmd == 'e':
-            return 0
+            return 0, ""
 
 
-def chat_menu(stub):
+def chat_menu(stub, creator):
     while True:
         print("""Выберите команду:
           0 - создание чата
@@ -38,7 +40,51 @@ def chat_menu(stub):
           е - выход из аккаунта""")
         cmd = input()
         if cmd == '0':
-            pass
+            chat_name = input("Введите название чата: ")
+            response = stub.GetAllUsers(message_service_pb2.GetAllUsersRequest(username=creator))
+            users = []
+            # creator_info = [user for user in response.users if creator == user.username]
+            # users_info = [user.user_id for user in response.users if creator == user.username]
+            input_value = -1
+            dictionary_users = {user.username: user for user in response.users}
+            creator_info = dictionary_users[creator]
+            print(dictionary_users)
+            while input_value != 1: 
+                username = input("Введите username пользователя, которого хотите добавить в чат: ")
+                print(type(username))
+                if username in dictionary_users.keys():
+                        users.append(dictionary_users[username])
+                        print("Пользователь добавлен в список!") # TODO: Поправить сообщение
+                        print("""Выберите команду: 
+                            0 - добавить ещё одного пользователя
+                            1 - завершить создание чата""")
+                        input_value = int(input())
+                else: 
+                    print("Такой пользователь не найден!")
+                    print("""Выберите команду:
+                        0 - попробовать ещё раз
+                        1 - выйти в меню пользователя""")
+                    input_value = int(input())
+                    if input_value == 1:
+                        chat_menu(stub, creator)    
+                # input_value = int(input())
+            # while input_value != 1: 
+            #     username = print(input("Введите username пользователя, которого хотите добавить в чат:"))
+            #     # print(response.users)
+                
+            #     for user in response.users:
+            #         print(user.username)
+            #         if username == user.username:
+            #             users_id.append(user.user_id)
+            #             print("Пользователь добавлен в список!") # TODO: Поправить сообщение
+            #             break
+
+            #     print("""Выберите команду: 
+            #           0 - добавить ещё одного пользователя
+            #           1 - завершить создание чата""")
+            #     input_value = int(input())
+            create_chat_response = stub.CreateChat(message_service_pb2.CreateChatRequest(creator=creator_info, chat_name=chat_name, users=users))
+            print(create_chat_response.message)
         elif cmd == '1':
             pass
         elif cmd == 'e':
@@ -46,19 +92,21 @@ def chat_menu(stub):
 
 def run() -> None:
     with grpc.insecure_channel("localhost:50051") as channel:
-        auth_stub = chat_pb2_grpc.AuthServiceStub(channel)
-        chat_stub = ""
+        auth_stub = auth_service_pb2_grpc.AuthServiceStub(channel)
+        chat_stub = message_service_pb2_grpc.MessageServiceStub(channel)
 
         CLOSE_CLIENT = False
         AUTH_USER = False
+        username_auth = ""
 
         while not CLOSE_CLIENT:
-            if AUTH_USER:
-                result = chat_menu(auth_stub)
+            if AUTH_USER and len(username_auth) != 0:
+                result = chat_menu(chat_stub, username_auth)
                 if result == 0:
                     AUTH_USER = False
+                    username_auth = ""
             else:
-                result = main_menu(chat_stub)
+                result, username_auth = main_menu(auth_stub)
                 if result == 0:
                     CLOSE_CLIENT = True
                 elif result == 1:
