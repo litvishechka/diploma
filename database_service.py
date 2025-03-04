@@ -31,7 +31,13 @@ class DatabaseService:
         """
             Этот метод добавляет пользователей в нужный чат.
         """
-        raise NotImplementedError("Метод add_to_chat не реализован.")
+        raise NotImplementedError("Метод add_users_to_chat не реализован.")
+    
+    def get_chats_user(self, username: str):
+        """
+            Этот метод выводит все чаты пользователя, в которые у него есть
+        """
+        raise NotImplementedError("Метод get_chats_user не реализован.")
     
 class TextDbService(DatabaseService):
     def __init__(self, filename):
@@ -133,8 +139,6 @@ class PostgreSQLDbService(DatabaseService):
             if found_username == username:
                 return found_username, found_password
         return None
-        # pass
-
 
     def add_user(self, username: str, password: str) -> bool:
         cursor = self.connection.cursor()
@@ -172,3 +176,12 @@ class PostgreSQLDbService(DatabaseService):
         cursor.executemany("INSERT INTO user_chat(user_id, chat_id) VALUES(%s,%s)", values)
         self.connection.commit()
         cursor.close()
+
+    def get_chats_user(self, username):
+        cursor = self.connection.cursor()  
+        cursor.execute(f"""SELECT chat_id, chat_name 
+                        FROM users INNER JOIN user_chat USING(user_id)
+                        INNER JOIN chat USING(chat_id)
+                        WHERE user_name = \'{username}\'""") 
+        result = cursor.fetchall()
+        return result 
