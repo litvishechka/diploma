@@ -23,3 +23,7 @@ class MessageService(message_service_pb2_grpc.MessageServiceServicer):
         # for user in all_users:
         #     all_users_user_info.append(message_service_pb2.UserInfo(user_id=user[0], username=user[1]))
         return message_service_pb2.GetAllUsersResponse(users=[UserInfo(user_id=user[0], username=user[1]) for user in all_users])
+    
+    def GetChatList(self, request, context):
+        user_chats = self.db_service.get_chats_user(request.username)
+        return message_service_pb2.GetChatResponse(chats=[ChatInfo(chat_id=chat[0], chat_name=chat[1]) for chat in user_chats])
