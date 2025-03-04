@@ -43,15 +43,12 @@ def chat_menu(stub, creator):
             chat_name = input("Введите название чата: ")
             response = stub.GetAllUsers(message_service_pb2.GetAllUsersRequest(username=creator))
             users = []
-            # creator_info = [user for user in response.users if creator == user.username]
-            # users_info = [user.user_id for user in response.users if creator == user.username]
             input_value = -1
             dictionary_users = {user.username: user for user in response.users}
             creator_info = dictionary_users[creator]
             print(dictionary_users)
             while input_value != 1: 
                 username = input("Введите username пользователя, которого хотите добавить в чат: ")
-                print(type(username))
                 if username in dictionary_users.keys():
                         users.append(dictionary_users[username])
                         print("Пользователь добавлен в список!") # TODO: Поправить сообщение
@@ -67,26 +64,16 @@ def chat_menu(stub, creator):
                     input_value = int(input())
                     if input_value == 1:
                         chat_menu(stub, creator)    
-                # input_value = int(input())
-            # while input_value != 1: 
-            #     username = print(input("Введите username пользователя, которого хотите добавить в чат:"))
-            #     # print(response.users)
-                
-            #     for user in response.users:
-            #         print(user.username)
-            #         if username == user.username:
-            #             users_id.append(user.user_id)
-            #             print("Пользователь добавлен в список!") # TODO: Поправить сообщение
-            #             break
-
-            #     print("""Выберите команду: 
-            #           0 - добавить ещё одного пользователя
-            #           1 - завершить создание чата""")
-            #     input_value = int(input())
             create_chat_response = stub.CreateChat(message_service_pb2.CreateChatRequest(creator=creator_info, chat_name=chat_name, users=users))
             print(create_chat_response.message)
         elif cmd == '1':
-            pass
+            response = stub.GetChatList(message_service_pb2.GetChatRequest(username=creator))
+            print("Выберите чат, к которому хотите подключиться из представленных ниже и напишите его index: ")
+            # dictionary_chats = {chat.chat_name: chat for chat in response.chats}
+            dictionary_chats = dict(enumerate(response.chats))
+            for key in dictionary_chats:
+                print(f"{key} - {dictionary_chats[key].chat_name}")
+            input_index = int(input("Введите индекс чата, к которому хотите подключиться: "))
         elif cmd == 'e':
             return 0      
 
