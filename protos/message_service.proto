@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+import "types.proto";
+
+service MessageService {
+    rpc CreateChat (CreateChatRequest) returns (CreateChatResponse) {}
+    rpc GetChatList (GetChatRequest) returns (GetChatResponse) {}
+    rpc GetAllUsers (GetAllUsersRequest) returns (GetAllUsersResponse) {}
+    // rpc ConnectToChat (ConnectRequest) returns (ConnectResponse) {}
+}
+
+// message UserInfo{
+//     int32 user_id = 1;
+//     string username = 2;
+// }
+
+message CreateChatRequest {
+    UserInfo creator = 1;
+    string chat_name = 2;
+    repeated UserInfo users = 3;
+}
+
+message CreateChatResponse {
+    string message = 1;
+}
+
+message GetChatRequest  {
+    string username = 1;
+}
+
+message ChatInfo{
+    int32 chat_id = 1;
+    string chat_name = 2;
+}
+
+message GetChatResponse {
+    repeated ChatInfo chats = 1;
+}
+
+message GetAllUsersRequest {
+    string username = 1;
+}
+
+message GetAllUsersResponse {
+    repeated UserInfo users = 1;    
+}
+// message ConnectRequest {
+//     string chatname = 1;
+// }
+
+// message ConnectResponse {
+//     string message = 1;
+// }
