@@ -7,6 +7,7 @@ import message_service_pb2
 import message_service_pb2_grpc
 
 
+
 def main_menu(stub):
     # Если возвращаем 0, то это выход из приложения, если - 1, то это переход в другое меню
     while True:
@@ -74,6 +75,11 @@ def chat_menu(stub, creator):
             for key in dictionary_chats:
                 print(f"{key} - {dictionary_chats[key].chat_name}")
             input_index = int(input("Введите индекс чата, к которому хотите подключиться: "))
+            if input_index in dictionary_chats.keys():
+                pass
+                #запрос на подключение
+            else:
+                print("Данный индекс не найден, попробуйте ещё раз!")
         elif cmd == 'e':
             return 0      
 
