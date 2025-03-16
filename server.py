@@ -4,6 +4,7 @@ import logging
 from database_service import PostgreSQLDbService
 
 import grpc
+import asyncio
 import auth_service_pb2
 import auth_service_pb2_grpc
 from grpc_reflection.v1alpha import reflection
@@ -12,25 +13,55 @@ from message_service import MessageService
 import message_service_pb2
 import message_service_pb2_grpc
 
-def run():
+from concurrent import futures
+
+def run_sync_server():
     port = "50051"
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    # dbService = TextDbService("registered_users.txt")
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))  # максимальное количество пользователей
     dbService = PostgreSQLDbService("habrdb", "habrpguser", "pgpwd4habr", "127.0.0.1", "5432")
+    
     auth_service_pb2_grpc.add_AuthServiceServicer_to_server(AuthService(dbService), server)
-    message_service_pb2_grpc.add_MessageServiceServicer_to_server(MessageService(dbService), server)
+    
     SERVICE_NAMES = (
         auth_service_pb2.DESCRIPTOR.services_by_name['AuthService'].full_name,
-        message_service_pb2.DESCRIPTOR.services_by_name['MessageService'].full_name,
         reflection.SERVICE_NAME,
     )
+    
     reflection.enable_server_reflection(SERVICE_NAMES, server)
-    server.add_insecure_port("0.0.0.0:" + port)
+    server.add_insecure_port(f"0.0.0.0:{port}")
+    
     server.start()
-    print("Server started, listening on " + port)
+    print(f"Sync AuthService server started on port {port}")
     server.wait_for_termination()
 
 
+async def run_async_server():
+    port = "50052"
+    server = grpc.aio.server(options=[
+    ('grpc.keepalive_time_ms', 10000),  # Интервал отправки keepalive
+    ('grpc.keepalive_timeout_ms', 5000),  # Таймаут ожидания ответа на keepalive
+    ('grpc.http2.max_pings_without_data', 0),  # Разрешить keepalive без данных
+]) 
+    
+    dbService = PostgreSQLDbService("habrdb", "habrpguser", "pgpwd4habr", "127.0.0.1", "5432")
+    message_service_pb2_grpc.add_MessageServiceServicer_to_server(MessageService(dbService), server)
+    
+    SERVICE_NAMES = (
+        message_service_pb2.DESCRIPTOR.services_by_name['MessageService'].full_name,
+        reflection.SERVICE_NAME,
+    )
+    
+    reflection.enable_server_reflection(SERVICE_NAMES, server)
+    server.add_insecure_port(f"0.0.0.0:{port}")
+    
+    await server.start()
+    print(f"Async MessageService server started on port {port}")
+    await server.wait_for_termination()
+
 if __name__ == "__main__":
     logging.basicConfig()
-    run()
+
+    sync_server_thread = futures.ThreadPoolExecutor(max_workers=10) #максимальное количество пользователей
+    sync_server_thread.submit(run_sync_server)
+
+    asyncio.run(run_async_server())
