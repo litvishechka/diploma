@@ -1,6 +1,7 @@
 from database_service import DatabaseService
 import auth_service_pb2
 import auth_service_pb2_grpc
+from types_pb2 import *
 
 class AuthService(auth_service_pb2_grpc.AuthServiceServicer):
     def __init__(self, dbs: DatabaseService):
@@ -21,7 +22,7 @@ class AuthService(auth_service_pb2_grpc.AuthServiceServicer):
         user_info = self.db_service.get_user_info(request.username)
         if user_info is None:
             return auth_service_pb2.LoginResponse(message="Пользователя с именем %s не существует, попробуйте зарегистрироваться!" % request.username)
-        elif user_info[1] != request.password:
+        elif user_info[2] != request.password:
             return auth_service_pb2.LoginResponse(message="Неверный логин или пароль, попробуйте ещё раз!") 
         else: 
-            return auth_service_pb2.LoginResponse(message="Вы успешно авторизованы!")
+            return auth_service_pb2.LoginResponse(user=UserInfo(user_id=user_info[0], username=user_info[1]), message="Вы успешно авторизованы!")

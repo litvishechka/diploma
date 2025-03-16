@@ -6,13 +6,9 @@ service MessageService {
     rpc CreateChat (CreateChatRequest) returns (CreateChatResponse) {}
     rpc GetChatList (GetChatRequest) returns (GetChatResponse) {}
     rpc GetAllUsers (GetAllUsersRequest) returns (GetAllUsersResponse) {}
-    // rpc ConnectToChat (ConnectRequest) returns (ConnectResponse) {}
+    rpc ConnectToChat (ConnectRequest) returns (ConnectResponse) {}
+    rpc ChatStream (stream ChatMessage) returns (stream ChatMessage) {}
 }
-
-// message UserInfo{
-//     int32 user_id = 1;
-//     string username = 2;
-// }
 
 message CreateChatRequest {
     UserInfo creator = 1;
@@ -28,11 +24,6 @@ message GetChatRequest  {
     string username = 1;
 }
 
-message ChatInfo{
-    int32 chat_id = 1;
-    string chat_name = 2;
-}
-
 message GetChatResponse {
     repeated ChatInfo chats = 1;
 }
@@ -44,10 +35,18 @@ message GetAllUsersRequest {
 message GetAllUsersResponse {
     repeated UserInfo users = 1;    
 }
-// message ConnectRequest {
-//     string chatname = 1;
-// }
 
-// message ConnectResponse {
-//     string message = 1;
-// }
+message ConnectRequest {
+    ChatInfo chat = 1;
+    UserInfo user = 2;
+}
+
+message ConnectResponse {
+    string message = 1;
+}
+
+message ChatMessage {
+    ChatInfo chat = 1;
+    UserInfo user = 2;
+    string message = 3;
+}

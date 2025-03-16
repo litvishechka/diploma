@@ -5,4 +5,7 @@ message UserInfo {
     string username = 2;
 }
 
-
+message ChatInfo{
+    int32 chat_id = 1;
+    string chat_name = 2;
+}

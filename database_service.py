@@ -131,13 +131,14 @@ class PostgreSQLDbService(DatabaseService):
 
     def get_user_info(self, username: str)-> tuple[str, str]: 
         cursor = self.connection.cursor()
-        cursor.execute("SELECT user_name, password FROM users")
+        cursor.execute("SELECT user_id, user_name, password FROM users")
         users_passwords = cursor.fetchall()
         for row in users_passwords:
-            found_username = row[0] 
-            found_password = row[1]
+            user_id = row[0]
+            found_username = row[1] 
+            found_password = row[2]
             if found_username == username:
-                return found_username, found_password
+                return user_id, found_username, found_password
         return None
 
     def add_user(self, username: str, password: str) -> bool:
@@ -159,11 +160,6 @@ class PostgreSQLDbService(DatabaseService):
         cursor = self.connection.cursor()
         cursor.execute(f"SELECT user_id, user_name FROM users")
         result = cursor.fetchall()
-        # for i in range(len(result)):
-        #     if result[i][1] == username:
-        #         temp = list(result[i])
-        #         temp[1] += " (вы)"
-        #         result[i] = tuple(temp)
         return result    
     
     def add_users_to_chat(self, chat_id, users: list[int]):
