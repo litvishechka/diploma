@@ -39,6 +39,12 @@ class DatabaseService:
         """
         raise NotImplementedError("Метод get_chats_user не реализован.")
     
+    def add_message(self, user_id, chat_id, message, date_created):
+        """
+            Этот метод добавляет отправленные пользователями сообщения в хранилище
+        """
+        raise NotImplementedError("Метод add_message не реализован.")
+    
 class TextDbService(DatabaseService):
     def __init__(self, filename):
         self.filename = filename
@@ -108,11 +114,11 @@ class PostgreSQLDbService(DatabaseService):
         """,
         """
         CREATE TABLE IF NOT EXISTS message(
-                message_id INTEGER PRIMARY KEY,
+                message_id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
                 chat_id INTEGER NOT NULL,
                 text TEXT NOT NULL,
-                date_created DATE NOT NULL,
+                date_created TIMESTAMP NOT NULL,
                 FOREIGN KEY (user_id)
                     REFERENCES users (user_id)
                     ON UPDATE CASCADE ON DELETE CASCADE,
@@ -181,3 +187,10 @@ class PostgreSQLDbService(DatabaseService):
                         WHERE user_name = \'{username}\'""") 
         result = cursor.fetchall()
         return result 
+    
+    def add_message(self, user_id, chat_id, message, date_created):
+        cursor = self.connection.cursor()
+        cursor.execute(f"""INSERT INTO message(user_id, chat_id, text, date_created) 
+                       VALUES (\'{user_id}\', \'{chat_id}\', \'{message}\', \'{date_created}\')""")
+        self.connection.commit()
+        cursor.close()
