@@ -1,14 +1,14 @@
 import logging
+import asyncio
 
 import grpc
 import auth_service_pb2
 import auth_service_pb2_grpc
 import message_service_pb2
 import message_service_pb2_grpc
-from types_pb2 import *
-from async_client import *
-import queue
-
+from types_pb2 import UserInfo
+from prompt_toolkit import PromptSession
+from prompt_toolkit.patch_stdout import patch_stdout
 
 def main_menu(stub):
     # Если возвращаем 0, то это выход из приложения, если - 1, то это переход в другое меню
@@ -34,94 +34,87 @@ def main_menu(stub):
             return 0, ""
 
 
-def chat_menu(stub, creator_info):
-    queue = asyncio.Queue()
-    while True:
-        print("""Выберите команду:
-          0 - создание чата
-          1 - подключение к чату 
-          е - выход из аккаунта""")
-        cmd = input()
-        if cmd == '0':
-            chat_name = input("Введите название чата: ")
-            response = stub.GetAllUsers(message_service_pb2.GetAllUsersRequest(username=creator_info.username))
-            users = []
-            input_value = -1
-            dictionary_users = {user.username: user for user in response.users}
+async def chat_menu(creator_info):
+    async with grpc.aio.insecure_channel("localhost:50052") as async_channel:
+        stub = message_service_pb2_grpc.MessageServiceStub(async_channel)
+        while True:
+            print("""Выберите команду:
+            0 - создание чата
+            1 - подключение к чату 
+            е - выход из аккаунта""")
+            cmd = input()
+            if cmd == '0':
+                await create_chat(stub, creator_info)
+            elif cmd == '1':
+                response = await stub.GetChatList(message_service_pb2.GetChatRequest(username=creator_info.username))
+                print("Выберите чат, к которому хотите подключиться из представленных ниже и напишите его index: ")
+                dictionary_chats = dict(enumerate(response.chats))
+                for key in dictionary_chats:
+                    print(f"{key} - {dictionary_chats[key].chat_name}")
+                input_index = int(input("Введите индекс чата, к которому хотите подключиться: "))
+                if input_index in dictionary_chats.keys():
+                    print("Чтобы выйти из чата - напишите exit.")
+                    await chat_stream(stub, dictionary_chats[input_index], creator_info)
+                else:
+                    print("Данный индекс не найден, попробуйте ещё раз!")
+            elif cmd == 'e':
+                return 0    
 
-            while input_value != 1: 
-                username = input("Введите username пользователя, которого хотите добавить в чат: ")
-                if username in dictionary_users.keys():
-                        users.append(dictionary_users[username])
-                        print("Пользователь добавлен в список!") # TODO: Поправить сообщение
-                        print("""Выберите команду: 
-                            0 - добавить ещё одного пользователя
-                            1 - завершить создание чата""")
-                        input_value = int(input())
-                else: 
-                    print("Такой пользователь не найден!")
-                    print("""Выберите команду:
-                        0 - попробовать ещё раз
-                        1 - выйти в меню пользователя""")
-                    input_value = int(input())
-                    if input_value == 1:
-                        chat_menu(stub, creator_info)    
-            create_chat_response = stub.CreateChat(message_service_pb2.CreateChatRequest(creator=creator_info, chat_name=chat_name, users=users))
-            print(create_chat_response.message)
-        elif cmd == '1':
-            response = stub.GetChatList(message_service_pb2.GetChatRequest(username=creator_info.username))
-            print("Выберите чат, к которому хотите подключиться из представленных ниже и напишите его index: ")
-            dictionary_chats = dict(enumerate(response.chats))
-            for key in dictionary_chats:
-                print(f"{key} - {dictionary_chats[key].chat_name}")
-            input_index = int(input("Введите индекс чата, к которому хотите подключиться: ")) #TODO сделать, чтобы пользователи могли вводить только int значения
-            if input_index in dictionary_chats.keys():
-                asyncio.run(queue.put((dictionary_chats[input_index], creator_info)))
-                asyncio.run(main(queue))
-                print("+")
-                # asyncio.create_task(chat_stream(stub, dictionary_chats[input_index], creator_info))
-                # asyncio.run(chat_stream(stub, dictionary_chats[input_index], creator_info))
+async def create_chat(stub, creator_info):
+    chat_name = input("Введите название чата: ")
+    response = await stub.GetAllUsers(message_service_pb2.GetAllUsersRequest(username=creator_info.username))
+    users = []
+    input_value = -1
+    dictionary_users = {user.username: user for user in response.users}
 
-                # pass
-                # # print(dictionary_chats[input_index].chat_id)
-                # response = stub.ConnectToChat(message_service_pb2.ConnectRequest(chat=dictionary_chats[input_index], user=creator_info))
-                # print(response.message + " Чтобы выйти из чата - напишите exit.")
-                # def message_iterator():
-                #     while True:
-                #         message = input("Введите сообщение: ")
-                #         if message.lower() == 'exit':
-                #             print("Выход из чата...")
-                #             break
-                #         # Отправляем сообщение
-                #         yield message_service_pb2.StreamRequest(chat=dictionary_chats[input_index], user=creator_info, message=message)
-                
-                # # Получаем поток сообщений
-                # for response in stub.ChatStream(message_iterator()):
-                #     print(response.user.username)
-                #     if response.user.username == creator_info.username:
-                #         print(f"\n[Вы]: {response.message}")
-                #     else:
-                #         print(f"\n[{response.user.username}]: {response.message}")
-                #     # print(f"Новое сообщение от {response.user.username}: {response.message}")
-                #     # send_thread = threading.Thread(target=send_messages, args=(stub, creator_info, dictionary_chats[input_index]))
-                #     # receive_thread = threading.Thread(target=receive_messages, args=(stub, creator_info, dictionary_chats[input_index]))
-            
-                #     # send_thread.start()
-                #     # receive_thread.start()
+    while input_value != 1: 
+        username = input("Введите username пользователя, которого хотите добавить в чат: ")
+        if username in dictionary_users.keys():
+                users.append(dictionary_users[username])
+                print("Пользователь добавлен в список!") # TODO: Поправить сообщение
+                print("""Выберите команду: 
+                    0 - добавить ещё одного пользователя
+                    1 - завершить создание чата""")
+                input_value = int(input())
+        else: 
+            print("Такой пользователь не найден!")
+            print("""Выберите команду:
+                0 - попробовать ещё раз
+                1 - выйти в меню пользователя""")
+            input_value = int(input())
+            if input_value == 1:
+                return 0    
+    create_chat_response = await stub.CreateChat(message_service_pb2.CreateChatRequest(creator=creator_info, chat_name=chat_name, users=users))
+    print(create_chat_response.message)  
 
-                #     # # Дожидаемся завершения потоков
-                #     # send_thread.join()
-                #     # receive_thread.join()
-            else:
-                print("Данный индекс не найден, попробуйте ещё раз!")
-        elif cmd == 'e':
-            return 0      
+async def chat_stream(stub, chat_info, user_info):
+    """Функция для отправки и получения сообщений в чате."""
+    first_message = message_service_pb2.ChatMessage(chat=chat_info, user=user_info, message='')
 
+    async def message_generator():
+        """Генератор для отправки сообщений серверу."""
+        yield first_message
+        session = PromptSession()
+        while True:
+            with patch_stdout():
+                message = await session.prompt_async(">>> ")
+            print('\033[1A' + '\033[K', end="", flush=True)
+            if message.lower() == "exit":
+                print("Выход из чата.")
+                yield message_service_pb2.ChatMessage(chat=chat_info, user=user_info, message=message)
+                return 
+            yield message_service_pb2.ChatMessage(chat=chat_info, user=user_info, message=message)
+
+    async def receive_messages():
+        """Обрабатывает входящие сообщения от сервера."""
+        async for message in stub.ChatStream(message_generator()):
+            print(f"[{message.user.username}]: {message.message}")
+
+    await receive_messages()
 
 def run() -> None:
-    with grpc.insecure_channel("localhost:50051") as auth_channel, grpc.insecure_channel("localhost:50052") as chat_channel:
-        auth_stub = auth_service_pb2_grpc.AuthServiceStub(auth_channel)
-        chat_stub = message_service_pb2_grpc.MessageServiceStub(chat_channel)
+    with grpc.insecure_channel("localhost:50051") as sync_channel:
+        auth_stub = auth_service_pb2_grpc.AuthServiceStub(sync_channel)
 
         CLOSE_CLIENT = False
         AUTH_USER = False
@@ -129,7 +122,7 @@ def run() -> None:
 
         while not CLOSE_CLIENT:
             if AUTH_USER and len(user_auth_info.username) != 0:
-                result = chat_menu(chat_stub, user_auth_info)
+                result = asyncio.run(chat_menu(user_auth_info))
                 if result == 0:
                     AUTH_USER = False
                     user_auth_info = UserInfo()
@@ -140,9 +133,6 @@ def run() -> None:
                 elif result == 1:
                     AUTH_USER = True
 
-
 if __name__ == "__main__":
     logging.basicConfig()
     run()
-
-
