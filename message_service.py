@@ -8,6 +8,9 @@ import message_service_pb2
 import message_service_pb2_grpc
 from database_service import DatabaseService
 from types_pb2 import *
+from datetime import datetime
+import pytz
+
 
 class MessageService(message_service_pb2_grpc.MessageServiceServicer):
     def __init__(self, dbs: DatabaseService):
@@ -63,26 +66,42 @@ class MessageService(message_service_pb2_grpc.MessageServiceServicer):
             try:
                 while True:
                     message = await queue.get()  
+                    if message is None:
+                        break
                     yield message  
             except asyncio.CancelledError:
                 print("Отключение клиента...")
             finally:
-                self.clients[chat_id].remove(queue)
+                if chat_id in self.clients.keys():
+                    self.clients[chat_id].discard(queue)  # Безопасное удаление
+                    if not self.clients[chat_id]:  # Если чата больше нет, удаляем ключ
+                        del self.clients[chat_id]
+                    
 
         async def receive_messages():
             """Принимает сообщения от клиента и рассылает другим."""
             try:
                 async for message in request_iterator:
+                    local_time = datetime.now()
+                    utc_time = local_time.astimezone(pytz.utc)
+                    self.db_service.add_message(message.user.user_id, message.chat.chat_id, message.message, utc_time)
+                    if message.message.lower() == "exit":  # Клиент отправил команду выхода
+                        print(f"Клиент {message.user.username} выходит из чата {chat_id}")
+                        break
+
                     print(f"[{message.user.username}]: {message.message}")
                     for client_queue in self.clients[message.chat.chat_id]:
-                        if client_queue is not queue:
-                            await client_queue.put(message)
+                        # if client_queue is not queue:
+                        await client_queue.put(message)
             except grpc.aio.AioRpcError as e:
                 print(f"Ошибка gRPC: {e.details()}")
             except Exception as e:
                 print(f"Ошибка сервера: {e}")
             finally:
-                self.clients[chat_id].remove(queue)
+                self.clients[chat_id].discard(queue)  
+                if not self.clients[chat_id]:  
+                    del self.clients[chat_id]
+                await queue.put(None)  
 
         receive_task = asyncio.create_task(receive_messages())
 
