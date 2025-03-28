@@ -7,6 +7,7 @@ service MessageService {
     rpc GetChatList (GetChatRequest) returns (GetChatResponse) {}
     rpc GetAllUsers (GetAllUsersRequest) returns (GetAllUsersResponse) {}
     rpc ConnectToChat (ConnectRequest) returns (ConnectResponse) {}
+    rpc UploadMessages (UploadRequest) returns (stream ChatMessage) {}
     rpc ChatStream (stream ChatMessage) returns (stream ChatMessage) {}
 }
 
@@ -43,6 +44,11 @@ message ConnectRequest {
 
 message ConnectResponse {
     string message = 1;
+}
+
+message UploadRequest {
+    ChatInfo chat = 1;
+    int32 number_messages = 2;
 }
 
 message ChatMessage {

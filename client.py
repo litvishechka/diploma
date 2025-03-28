@@ -52,7 +52,10 @@ async def chat_menu(creator_info):
                 for key in dictionary_chats:
                     print(f"{key} - {dictionary_chats[key].chat_name}")
                 input_index = int(input("Введите индекс чата, к которому хотите подключиться: "))
-                if input_index in dictionary_chats.keys():
+                if input_index in dictionary_chats.keys(): 
+                    number_messages = int(input("Введите количество сообщений, которые хотите подгрузить: "))
+                    async for message in stub.UploadMessages(message_service_pb2.UploadRequest(chat=dictionary_chats[input_index],  number_messages=number_messages)):
+                        print(f"[{message.user.username}]: {message.message}")
                     print("Чтобы выйти из чата - напишите exit.")
                     await chat_stream(stub, dictionary_chats[input_index], creator_info)
                 else:
@@ -96,6 +99,7 @@ async def chat_stream(stub, chat_info, user_info):
         yield first_message
         session = PromptSession()
         while True:
+            #TODO: исправить зависание клиента при отключении сервера через try
             with patch_stdout():
                 message = await session.prompt_async(">>> ")
             print('\033[1A' + '\033[K', end="", flush=True)

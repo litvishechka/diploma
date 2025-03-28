@@ -27,8 +27,6 @@ class MessageService(message_service_pb2_grpc.MessageServiceServicer):
     
     async def GetAllUsers(self, request, context):
         all_users = self.db_service.get_all_users(request.username)
-        # for user in all_users:
-        #     all_users_user_info.append(message_service_pb2.UserInfo(user_id=user[0], username=user[1]))
         return message_service_pb2.GetAllUsersResponse(users=[UserInfo(user_id=user[0], username=user[1]) for user in all_users])
     
     async def GetChatList(self, request, context):
@@ -36,7 +34,7 @@ class MessageService(message_service_pb2_grpc.MessageServiceServicer):
         return message_service_pb2.GetChatResponse(chats=[ChatInfo(chat_id=chat[0], chat_name=chat[1]) for chat in user_chats])
     
     async def ConnectToChat(self, request, context):
-        print(request.chat.chat_id)
+        # print(request.chat.chat_id)
         if request.chat.chat_id not in self.active_chats_users:
             self.active_chats_users[request.chat.chat_id] = []
 
@@ -46,6 +44,13 @@ class MessageService(message_service_pb2_grpc.MessageServiceServicer):
         print(self.active_chats_users)
         return message_service_pb2.ConnectResponse(message="Вы успешно подключились к чату!")
     
+    async def UploadMessages(self, request, context):
+        messages = self.db_service.upload_messages(request.chat.chat_id, request.number_messages)
+        for message in messages:
+            print(message)
+            yield message_service_pb2.ChatMessage(chat=ChatInfo(chat_id=message[0], chat_name=message[1]), user=UserInfo(user_id=message[2], username=message[3]), message=message[4])
+        print(messages)
+
     async def ChatStream(self, request_iterator, context):
         """Обрабатывает поток сообщений от клиентов и рассылает другим клиентам."""
         first_message = await anext(request_iterator, None)
@@ -82,9 +87,10 @@ class MessageService(message_service_pb2_grpc.MessageServiceServicer):
             """Принимает сообщения от клиента и рассылает другим."""
             try:
                 async for message in request_iterator:
-                    local_time = datetime.now()
-                    utc_time = local_time.astimezone(pytz.utc)
-                    self.db_service.add_message(message.user.user_id, message.chat.chat_id, message.message, utc_time)
+                    if message.message != "exit":
+                        local_time = datetime.now()
+                        utc_time = local_time.astimezone(pytz.utc)
+                        self.db_service.add_message(message.user.user_id, message.chat.chat_id, message.message, utc_time)
                     if message.message.lower() == "exit":  # Клиент отправил команду выхода
                         print(f"Клиент {message.user.username} выходит из чата {chat_id}")
                         break

@@ -45,6 +45,12 @@ class DatabaseService:
         """
         raise NotImplementedError("Метод add_message не реализован.")
     
+    def upload_messages(self, chat_id, top_n):
+        """
+            Этот метод добавляет подгружает пользователю первые top_n сообщений из хранилища
+        """
+        raise NotImplementedError("Метод upload_messages не реализован.")    
+    
 class TextDbService(DatabaseService):
     def __init__(self, filename):
         self.filename = filename
@@ -185,6 +191,16 @@ class PostgreSQLDbService(DatabaseService):
                         FROM users INNER JOIN user_chat USING(user_id)
                         INNER JOIN chat USING(chat_id)
                         WHERE user_name = \'{username}\'""") 
+        result = cursor.fetchall()
+        return result 
+    
+    def upload_messages(self, chat_id, top_n):
+        cursor = self.connection.cursor()
+        cursor.execute(f"""SELECT chat_id, chat_name, user_id, user_name, text  
+                        FROM message INNER JOIN users USING(user_id) 
+                        INNER JOIN chat USING(chat_id)
+                        WHERE chat_id = {chat_id}
+                        LIMIT {top_n}""") 
         result = cursor.fetchall()
         return result 
     
