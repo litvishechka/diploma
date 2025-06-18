@@ -10,6 +10,12 @@ from types_pb2 import UserInfo
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 
+
+with open("ssl/server.crt", "rb") as f:
+    trusted_certs = f.read()
+
+credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
+
 def main_menu(stub):
     # Если возвращаем 0, то это выход из приложения, если - 1, то это переход в другое меню
     while True:
@@ -19,13 +25,13 @@ def main_menu(stub):
           е - выход из приложения""")
         cmd = input()
         if cmd == '0':
-            username = str(input("Введите логин: "))
-            password = str(input("Введите пароль: "))
+            username = str(input("Введите логин: ").encode("utf-8", errors="ignore").decode("utf-8"))
+            password = str(input("Введите пароль: ").encode("utf-8", errors="ignore").decode("utf-8"))
             response = stub.RegisterUser(auth_service_pb2.RegisterRequest(username=username, password=password))
             print(response.message)
         elif cmd == '1':
-            username = str(input("Введите логин: "))
-            password = str(input("Введите пароль: "))
+            username = str(input("Введите логин: ").encode("utf-8", errors="ignore").decode("utf-8"))
+            password = str(input("Введите пароль: ").encode("utf-8", errors="ignore").decode("utf-8"))
             response = stub.LoginUser(auth_service_pb2.LoginRequest(username=username, password=password))
             print(response.message)
             if response.message == "Вы успешно авторизованы!":
@@ -35,7 +41,8 @@ def main_menu(stub):
 
 
 async def chat_menu(creator_info):
-    async with grpc.aio.insecure_channel("localhost:50052") as async_channel:
+    # async with grpc.aio.insecure_channel("localhost:50052") as async_channel:
+    async with grpc.aio.secure_channel("localhost:50052", credentials) as async_channel:
         stub = message_service_pb2_grpc.MessageServiceStub(async_channel)
         while True:
             print("""Выберите команду:
@@ -51,9 +58,9 @@ async def chat_menu(creator_info):
                 dictionary_chats = dict(enumerate(response.chats))
                 for key in dictionary_chats:
                     print(f"{key} - {dictionary_chats[key].chat_name}")
-                input_index = int(input("Введите индекс чата, к которому хотите подключиться: "))
+                input_index = int(input("Введите индекс чата, к которому хотите подключиться: ").encode("utf-8", errors="ignore").decode("utf-8"))
                 if input_index in dictionary_chats.keys(): 
-                    number_messages = int(input("Введите количество сообщений, которые хотите подгрузить: "))
+                    number_messages = int(input("Введите количество сообщений, которые хотите подгрузить: ").encode("utf-8", errors="ignore").decode("utf-8"))
                     async for message in stub.UploadMessages(message_service_pb2.UploadRequest(chat=dictionary_chats[input_index],  number_messages=number_messages)):
                         print(f"[{message.user.username}]: {message.message}")
                     print("Чтобы выйти из чата - напишите exit.")
@@ -99,7 +106,6 @@ async def chat_stream(stub, chat_info, user_info):
         yield first_message
         session = PromptSession()
         while True:
-            #TODO: исправить зависание клиента при отключении сервера через try
             with patch_stdout():
                 message = await session.prompt_async(">>> ")
             print('\033[1A' + '\033[K', end="", flush=True)
@@ -117,7 +123,8 @@ async def chat_stream(stub, chat_info, user_info):
     await receive_messages()
 
 def run() -> None:
-    with grpc.insecure_channel("localhost:50051") as sync_channel:
+    # with grpc.insecure_channel("localhost:50051") as sync_channel:
+    with grpc.secure_channel("localhost:50051", credentials) as sync_channel:
         auth_stub = auth_service_pb2_grpc.AuthServiceStub(sync_channel)
 
         CLOSE_CLIENT = False

@@ -97,7 +97,7 @@ class PostgreSQLDbService(DatabaseService):
         """ CREATE TABLE IF NOT EXISTS users (
             user_id SERIAL PRIMARY KEY,
             user_name VARCHAR(50) UNIQUE NOT NULL,
-            password VARCHAR(50) NOT NULL
+            password TEXT NOT NULL
         )
         """,
         """ CREATE TABLE IF NOT EXISTS chat(
@@ -200,6 +200,7 @@ class PostgreSQLDbService(DatabaseService):
                         FROM message INNER JOIN users USING(user_id) 
                         INNER JOIN chat USING(chat_id)
                         WHERE chat_id = {chat_id}
+                        ORDER BY date_created
                         LIMIT {top_n}""") 
         result = cursor.fetchall()
         return result 

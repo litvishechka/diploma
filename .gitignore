@@ -9,3 +9,6 @@
 
 # Ignore py files
 __pycache__/
+
+# Ignore keys
+ssl/
