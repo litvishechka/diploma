@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:17.2
+    restart: always
+    env_file:
+      - db.env
+
+  server:
+    image: server:latest
+    environment:
+      DB_HOST: db
+    env_file:
+      - server.env
+    depends_on:
+      - db
+    ports:
+      - "50051:50051"
+      - "50052:50052"
