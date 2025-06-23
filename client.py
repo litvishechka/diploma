@@ -1,3 +1,4 @@
+import argparse
 import logging
 import asyncio
 
@@ -40,9 +41,9 @@ def main_menu(stub):
             return 0, ""
 
 
-async def chat_menu(creator_info):
-    # async with grpc.aio.insecure_channel("localhost:50052") as async_channel:
-    async with grpc.aio.secure_channel("localhost:50052", credentials) as async_channel:
+async def chat_menu(creator_info, host, port):
+    # async with grpc.aio.insecure_channel(f"{host}:{port}") as async_channel:
+    async with grpc.aio.secure_channel(f"{host}:{port}", credentials) as async_channel:
         stub = message_service_pb2_grpc.MessageServiceStub(async_channel)
         while True:
             print("""Выберите команду:
@@ -122,9 +123,9 @@ async def chat_stream(stub, chat_info, user_info):
 
     await receive_messages()
 
-def run() -> None:
-    # with grpc.insecure_channel("localhost:50051") as sync_channel:
-    with grpc.secure_channel("localhost:50051", credentials) as sync_channel:
+def run(host, auth_port, message_port) -> None:
+    # with grpc.insecure_channel(f"{host}:{auth_port}") as sync_channel:
+    with grpc.secure_channel(f"{host}:{auth_port}", credentials) as sync_channel:
         auth_stub = auth_service_pb2_grpc.AuthServiceStub(sync_channel)
 
         CLOSE_CLIENT = False
@@ -133,7 +134,7 @@ def run() -> None:
 
         while not CLOSE_CLIENT:
             if AUTH_USER and len(user_auth_info.username) != 0:
-                result = asyncio.run(chat_menu(user_auth_info))
+                result = asyncio.run(chat_menu(user_auth_info, host, message_port))
                 if result == 0:
                     AUTH_USER = False
                     user_auth_info = UserInfo()
@@ -146,4 +147,17 @@ def run() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig()
-    run()
+
+    parser = argparse.ArgumentParser(description="Client to use chat",  # TODO: Fix description
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+                                     
+    parser.add_argument("--host", default="localhost", 
+                        help="Host to connect to server")
+    parser.add_argument("-ap", "--AuthPort", type=int, default=50051, 
+                        help="Port to connect to AuthService")
+    parser.add_argument("-mp", "--MessagePort", type=int, default=50052, 
+                        help="Port to connect to MessageService")
+
+    args = parser.parse_args()
+
+    run(args.host, args.AuthPort, args.MessagePort)
