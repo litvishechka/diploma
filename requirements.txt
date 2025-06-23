@@ -1,0 +1,10 @@
+argon2-cffi==25.1.0
+grpcio==1.73.0
+grpcio-reflection==1.73.0
+grpcio-tools==1.73.0
+prompt_toolkit==3.0.51
+protobuf==6.31.1
+psycopg2-binary==2.9.10
+python-dotenv==1.1.0
+pytz==2025.2
+wcwidth==0.2.13
